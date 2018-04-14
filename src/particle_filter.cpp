@@ -166,7 +166,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			sense_y.push_back(obs_in_map_cord[j].y);
 		}
 		
-		SetAssociations(particles[i],association,sense_x,sense_y);
+		SetAssociations(particles[i],associations,sense_x,sense_y);
 		
 	}
 	
