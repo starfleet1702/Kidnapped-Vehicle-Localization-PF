@@ -25,6 +25,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 	
+	std::cout<<"Init Start"<<std::endl;
+	
 	//Number of Particles to draw
 	num_particles = 50;
 	std::default_random_engine gen;
@@ -47,6 +49,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	
 	//done with Initialization
 	is_initialized = true;
+	
+	std::cout<<"Init End"<<endl;
 
 }
 
@@ -55,6 +59,9 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise std::normal_distribution and std::default_random_engine is used
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
+	
+	std::cout<<"prediction Start"<<std::endl;
+	
 	double min_threshold = 0.0001;
 	double v_by_yaw_rate = (velocity/yaw_rate);
 	double yaw_rate_mul_dt =  yaw_rate*delta_t;
@@ -82,6 +89,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		}
 		particles[i] = p;
 	}
+	
+	std::cout<<"prediction End"<<std::endl;
 }
 
 void ParticleFilter::dataAssociation(std::vector<Map::single_landmark_s> predicted, std::vector<LandmarkObs>& observations) {
@@ -91,6 +100,8 @@ void ParticleFilter::dataAssociation(std::vector<Map::single_landmark_s> predict
 	//   implement this method and use it as a helper during the updateWeights phase.
 	
 	//Nearest Neighbourhood Algorithm
+	
+	std::cout<<"dataAssociation Start"<<std::endl;
 	
 	for(unsigned int i=0; i<observations.size(); i++){
 		double min_dist = 0.0;
@@ -102,6 +113,8 @@ void ParticleFilter::dataAssociation(std::vector<Map::single_landmark_s> predict
 			}
 		}
 	}
+	
+	std::cout<<"dataAssociation End"<<std::endl;
 	
 }
 
@@ -118,7 +131,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
 	
+	std::cout<<"updateWeights Start"<<std::endl;
+	
 	for(unsigned int i=0; i<num_particles; i++){
+		
+		
 		
 		// Particle p = particles[i];
 		std::vector<Map::single_landmark_s> landmarks_in_range;
@@ -168,6 +185,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		
 		SetAssociations(particles[i],associations,sense_x,sense_y);
 		
+		std::cout<<"updateWeights Start"<<std::endl;
 	}
 	
 }
