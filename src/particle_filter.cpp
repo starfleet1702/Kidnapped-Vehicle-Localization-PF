@@ -137,14 +137,14 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			obs_in_map_cord.push_back(obs);
 		}
 		
-		dataAssociation(landmarks_in_range,observations);
+		dataAssociation(landmarks_in_range,obs_in_map_cord);
 		
-		for(unsigned int j=0; j<observations.size(); j++){
-			double x = observations[j].x;
-			double y = observations[j].y;
-			double mu_x = landmarks_in_range[observations[j].id].x_f;
-			double mu_y = landmarks_in_range[observations[j].id].y_f;
-			particles[i].weight *= (1/(2*M_PI*std_landmark[0]*std_landmark[1]))*exp(-(((0.5*(mu_x-x)*(mu_x-x))/sigma_landmark[0]*sigma_landmark[0])+((0.5*(mu_y-y)*(mu_y-y))/sigma_landmark[1]*sigma_landmark[1])));
+		for(unsigned int j=0; j<obs_in_map_cord.size(); j++){
+			double x = obs_in_map_cord[j].x;
+			double y = obs_in_map_cord[j].y;
+			double mu_x = landmarks_in_range[obs_in_map_cord[j].id].x_f;
+			double mu_y = landmarks_in_range[obs_in_map_cord[j].id].y_f;
+			particles[i].weight *= (1/(2*M_PI*std_landmark[0]*std_landmark[1]))*exp(-(((0.5*(mu_x-x)*(mu_x-x))/std_landmark[0]*std_landmark[0])+((0.5*(mu_y-y)*(mu_y-y))/std_landmark[1]*std_landmark[1])));
 		}
 	}
 	
