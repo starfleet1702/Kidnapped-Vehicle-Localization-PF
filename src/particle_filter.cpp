@@ -26,7 +26,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 	
 	//Number of Particles to draw
-	num_particles = 1000;
+	num_particles = 50;
 	std::default_random_engine gen;
 	
 	//Normal Distributions to represent uncertatiniy in GPS Measurements
@@ -60,20 +60,27 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	double yaw_rate_mul_dt =  yaw_rate*delta_t;
 	double v_mul_dt = velocity*delta_t;
 	
+	std::default_random_engine gen;
+	
+	normal_distribution<double> dist_noise_x (0,std_pos[0]);
+	normal_distribution<double> dist_noise_y (0,std_pos[1]);
+	normal_distribution<double> dist_noise_theta (0,std_pos[2]);
+	
 	for(unsigned int i=0; i<num_particles; i++){
 		Particle p = particles[i];
 		//Considering bicycle CTRV motion model
 		if(fabs(yaw_rate) > min_threshold){
-			p.x += v_by_yaw_rate*(sin(p.theta+yaw_rate_mul_dt)-sin(p.theta));
-			p.y += v_by_yaw_rate*(cos(p.theta)-cos(p.theta+yaw_rate_mul_dt));
-			p.theta += yaw_rate_mul_dt;
+			p.x += v_by_yaw_rate*(sin(p.theta+yaw_rate_mul_dt)-sin(p.theta))+dist_noise_x(gen);
+			p.y += v_by_yaw_rate*(cos(p.theta)-cos(p.theta+yaw_rate_mul_dt))+dist_noise_y(gen);
+			p.theta += yaw_rate_mul_dt+dist_noise_theta(gen);
 		}else{
 			//if yaw_rate too small, motion will be CV Linear motion
-			p.x += v_mul_dt*cos(p.theta);			
-			p.y += v_mul_dt*sin(p.theta);
+			p.x += v_mul_dt*cos(p.theta)+dist_noise_x(gen);			
+			p.y += v_mul_dt*sin(p.theta)+dist_noise_y(gen);
 		    //FIXME : No need to update theta as TR is small?
-			p.theta += yaw_rate_mul_dt;
+			p.theta += yaw_rate_mul_dt + dist_noise_theta(gen);
 		}
+		particles[i] = p;
 	}
 }
 
@@ -91,7 +98,7 @@ void ParticleFilter::dataAssociation(std::vector<Map::single_landmark_s> predict
 			double cdist = dist(observations[i].x,observations[i].y,predicted[j].x_f,predicted[j].y_f);
 			if(cdist < min_dist){
 				min_dist = cdist;
-				observations[i].id = predicted[j].id_i;
+				observations[i].id = j;//predicted[j].id_i;
 			}
 		}
 	}
@@ -129,6 +136,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			}
 		}
 		std::vector<LandmarkObs> obs_in_map_cord;
+		
 		//transforming observations to map cordinates 
 		for(unsigned int j=0; j<observations.size(); j++){
 			LandmarkObs obs;
@@ -139,6 +147,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		
 		dataAssociation(landmarks_in_range,obs_in_map_cord);
 		
+		
 		for(unsigned int j=0; j<obs_in_map_cord.size(); j++){
 			double x = obs_in_map_cord[j].x;
 			double y = obs_in_map_cord[j].y;
@@ -146,6 +155,19 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			double mu_y = landmarks_in_range[obs_in_map_cord[j].id].y_f;
 			particles[i].weight *= (1/(2*M_PI*std_landmark[0]*std_landmark[1]))*exp(-(((0.5*(mu_x-x)*(mu_x-x))/std_landmark[0]*std_landmark[0])+((0.5*(mu_y-y)*(mu_y-y))/std_landmark[1]*std_landmark[1])));
 		}
+		
+		std::vector<int> associations;
+        std::vector<double> sense_x;
+		std::vector<double> sense_y;
+		
+		for(unsigned int j=0; j<obs_in_map_cord.size(); j++){
+			associations.push_back(obs_in_map_cord[j].id);
+			sense_x.push_back(obs_in_map_cord[j].x);
+			sense_y.push_back(obs_in_map_cord[j].y);
+		}
+		
+		SetAssociations(particles[i],association,sense_x,sense_y);
+		
 	}
 	
 }
@@ -159,6 +181,7 @@ void ParticleFilter::resample() {
 	
 	//Defining a RANDOM disributions
 	std::default_random_engine gen;
+	
 	std::uniform_int_distribution<int> uni_dist_num_particle(0,num_particles-1);
 	double max_weight = getBestParticle().weight;
 	std::uniform_int_distribution<int> uni_dist_2wm(0,(2*max_weight)-1);
