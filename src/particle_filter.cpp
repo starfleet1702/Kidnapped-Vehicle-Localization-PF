@@ -14,6 +14,7 @@
 #include <sstream>
 #include <string>
 #include <iterator>
+#include <limits>
 
 #include "particle_filter.h"
 
@@ -25,7 +26,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 	
-	std::cout<<"Init Start"<<std::endl;
+	//std::cout<<"Init Start"<<std::endl;
 	
 	//Number of Particles to draw
 	num_particles = 50;
@@ -40,17 +41,18 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	for(unsigned int i=0; i<num_particles; i++){
 		Particle p;
 		p.id = i;
-		p.x = x + dist_noise_x(gen);
-		p.y = y + dist_noise_y(gen);
-		p.theta = theta + dist_noise_theta(gen);
+		p.x =  dist_noise_x(gen);
+		p.y = dist_noise_y(gen);
+		p.theta = dist_noise_theta(gen);
 		p.weight = 1.0;
 		particles.push_back(p);
+		weights.push_back(1.0);
 	}
 	
 	//done with Initialization
 	is_initialized = true;
 	
-	std::cout<<"Init End"<<endl;
+	//std::cout<<"Init End"<<endl;
 
 }
 
@@ -60,7 +62,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 	
-	std::cout<<"prediction Start"<<std::endl;
+	//std::cout<<"prediction Start"<<std::endl;
 	
 	double min_threshold = 0.0001;
 	double v_by_yaw_rate = (velocity/yaw_rate);
@@ -90,7 +92,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		particles[i] = p;
 	}
 	
-	std::cout<<"prediction End"<<std::endl;
+	//std::cout<<"prediction End"<<std::endl;
 }
 
 void ParticleFilter::dataAssociation(std::vector<Map::single_landmark_s> predicted, std::vector<LandmarkObs>& observations) {
@@ -101,20 +103,24 @@ void ParticleFilter::dataAssociation(std::vector<Map::single_landmark_s> predict
 	
 	//Nearest Neighbourhood Algorithm
 	
-	std::cout<<"dataAssociation Start"<<std::endl;
+	//std::cout<<"dataAssociation Start"<<std::endl;
 	
 	for(unsigned int i=0; i<observations.size(); i++){
-		double min_dist = 0.0;
+		double min_dist = std::numeric_limits<double>::infinity();
 		for(unsigned int j=0; j<predicted.size(); j++){
 			double cdist = dist(observations[i].x,observations[i].y,predicted[j].x_f,predicted[j].y_f);
+			//std::cout<<"cdist : "<<cdist<<endl;
 			if(cdist < min_dist){
 				min_dist = cdist;
 				observations[i].id = j;//predicted[j].id_i;
 			}
+			//std::cout<<" observations[i].id: "<<observations[i].id<<endl;
 		}
+		//std::cout<<"--------Again--------"<<endl;
+		
 	}
 	
-	std::cout<<"dataAssociation End"<<std::endl;
+	//std::cout<<"dataAssociation End"<<std::endl;
 	
 }
 
@@ -131,49 +137,65 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
 	
-	std::cout<<"updateWeights Start"<<std::endl;
+	//std::cout<<"updateWeights Start"<<std::endl;
 	
 	for(unsigned int i=0; i<num_particles; i++){
-		
-		
 		
 		// Particle p = particles[i];
 		std::vector<Map::single_landmark_s> landmarks_in_range;
 		
 		for(unsigned int j=0; j<map_landmarks.landmark_list.size(); j++){
 			
-			
-			if(dist(particles[i].x,particles[i].y,map_landmarks.landmark_list[j].x_f,map_landmarks.landmark_list[j].y_f)<=sensor_range){
+			double cdist = dist(particles[i].x,particles[i].y,map_landmarks.landmark_list[j].x_f,map_landmarks.landmark_list[j].y_f);
+			if(cdist <= sensor_range){
 				Map::single_landmark_s landmark;
 				landmark.id_i = map_landmarks.landmark_list[j].id_i;
 				landmark.x_f = map_landmarks.landmark_list[j].x_f;
 				landmark.y_f = map_landmarks.landmark_list[j].y_f;
+				
+				//std::cout<<"map_landmarks.landmark_list[j].x_f : "<<map_landmarks.landmark_list[j].x_f<<" map_landmarks.landmark_list[j].y_f :"<<map_landmarks.landmark_list[j].y_f<<" cdist : "<<cdist<<endl;
 				
 				landmarks_in_range.push_back(landmark);
 			}
 		}
 		std::vector<LandmarkObs> obs_in_map_cord;
 		
+		//std::cout<<"Particle pos : "<<"( "<<particles[i].x << " , " <<particles[i].y<<") "<<endl;
+		
 		//transforming observations to map cordinates 
 		for(unsigned int j=0; j<observations.size(); j++){
 			LandmarkObs obs;
+			double cdist = dist(particles[i].x,particles[i].y,observations[j].x,observations[j].y);
+			//std::cout<<"obs : "<<"( "<<observations[j].x << " , " <<observations[j].y<<" , "<<cdist<<" ) "<<endl;
 			obs.x = particles[i].x + cos(particles[i].theta)*(observations[j].x) - sin(particles[i].theta)*(observations[j].y);
 			obs.y = particles[i].y + sin(particles[i].theta)*(observations[j].x) + cos(particles[i].theta)*(observations[j].y);
+			//std::cout<<"obs_converted pos : "<<"( "<<obs.x << " , " <<obs.y<<") "<<endl;
 			obs_in_map_cord.push_back(obs);
 		}
 		
 		dataAssociation(landmarks_in_range,obs_in_map_cord);
 		
 		
+		particles[i].weight = 1.0;
+		
 		for(unsigned int j=0; j<obs_in_map_cord.size(); j++){
 			double x = obs_in_map_cord[j].x;
 			double y = obs_in_map_cord[j].y;
+			
+			//std::cout<<" obs_in_map_cord[j].id: "<<obs_in_map_cord[j].id<<endl;
 			double mu_x = landmarks_in_range[obs_in_map_cord[j].id].x_f;
 			double mu_y = landmarks_in_range[obs_in_map_cord[j].id].y_f;
+			
 			double gauss_norm = (1.0/(2.0*M_PI*std_landmark[0]*std_landmark[1]));	
-			std::cout<<"gauss_norm : "<<gauss_norm<<std::endl;
-		particles[i].weight *=gauss_norm*exp(-(((0.5*(mu_x-x)*(mu_x-x))/std_landmark[0]*std_landmark[0])+((0.5*(mu_y-y)*(mu_y-y))/std_landmark[1]*std_landmark[1])));
+			//std::cout<<"gauss_norm : "<<gauss_norm<<std::endl;
+			//std::cout<<"mu_x : "<<mu_x<<" mu_y : "<<mu_y<<" x : "<<x<<" y : "<<y<<endl;
+			double exp_val = exp(-(((0.5*(mu_x-x)*(mu_x-x))/(std_landmark[0]*std_landmark[0]))+((0.5*(mu_y-y)*(mu_y-y))/(std_landmark[1]*std_landmark[1]))));
+			//std::cout<<"exp_val : "<<exp_val<<endl;
+			particles[i].weight *= gauss_norm*exp_val;
 		}
+		
+		//std::cout<<"weight :"<<particles[i].weight<<endl;
+		
 		
 		std::vector<int> associations;
         std::vector<double> sense_x;
@@ -186,11 +208,13 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		}
 		
 		SetAssociations(particles[i],associations,sense_x,sense_y);
-		
-		std::cout<<"updateWeights End"<<std::endl;
+		weights[i]=particles[i].weight;
+		//std::cout<<"updateWeights End"<<std::endl;
 	}
 	
 }
+
+/*
 
 void ParticleFilter::resample() {
 	
@@ -206,7 +230,8 @@ void ParticleFilter::resample() {
 	
 	std::uniform_int_distribution<int> uni_dist_num_particle(0,num_particles-1);
 	double max_weight = getBestParticle().weight;
-	std::uniform_int_distribution<int> uni_dist_2wm(0,(2*max_weight)-1);
+	std::cout<<"max_weight : "<<max_weight<<endl;
+	std::uniform_real_distribution<double> uni_dist_2wm(0.0,(2.0*max_weight));
 	
 	//Choosing a RANDOM Index from uniform disribution
 	unsigned int index = uni_dist_num_particle(gen);
@@ -219,17 +244,40 @@ void ParticleFilter::resample() {
 		beta += uni_dist_2wm(gen);
 		std::cout<<"new beta : "<<beta<<std::endl;
 		while(beta>particles[index].weight){
-	//		std::cout<<"Weight : "<<particles[index].weight<<std::endl;
+			std::cout<<"Weight : "<<particles[index].weight<<std::endl;
 			beta-=particles[index].weight;
-	//		std::cout<<"reduced beta : "<<beta<<std::endl;
+			std::cout<<"reduced beta : "<<beta<<std::endl;
 			index = (index+1)%num_particles;
-	//		std::cout<<"New Index : "<<index<<std::endl;
+			std::cout<<"New Index : "<<index<<std::endl;
 		}
 		resampled_particles.push_back(particles[index]);
 	}
 	particles=resampled_particles;
 	std::cout<<"resample End"<<std::endl;
 
+}*/
+
+
+void ParticleFilter::resample() {
+	default_random_engine gen;
+    discrete_distribution<int> disc_dist(weights.begin(), weights.end());
+
+    vector<Particle> resampled_particles;
+    int rand_index;
+
+    for(unsigned int i=0; i < num_particles; i++){
+        rand_index = disc_dist(gen);
+
+        Particle p;
+        p.x = particles[rand_index].x;
+        p.y = particles[rand_index].y;
+        p.theta = particles[rand_index].theta;
+        p.weight = particles[rand_index].weight;
+
+        resampled_particles.push_back(p);
+    }
+  
+    particles = resampled_particles;
 }
 
 Particle ParticleFilter::SetAssociations(Particle& particle, const std::vector<int>& associations, 
