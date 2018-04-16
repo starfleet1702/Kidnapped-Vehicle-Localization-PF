@@ -170,7 +170,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			double y = obs_in_map_cord[j].y;
 			double mu_x = landmarks_in_range[obs_in_map_cord[j].id].x_f;
 			double mu_y = landmarks_in_range[obs_in_map_cord[j].id].y_f;
-			particles[i].weight *= (1/(2*M_PI*std_landmark[0]*std_landmark[1]))*exp(-(((0.5*(mu_x-x)*(mu_x-x))/std_landmark[0]*std_landmark[0])+((0.5*(mu_y-y)*(mu_y-y))/std_landmark[1]*std_landmark[1])));
+			double gauss_norm = (1.0/(2.0*M_PI*std_landmark[0]*std_landmark[1]));	
+			std::cout<<"gauss_norm : "<<gauss_norm<<std::endl;
+		particles[i].weight *=gauss_norm*exp(-(((0.5*(mu_x-x)*(mu_x-x))/std_landmark[0]*std_landmark[0])+((0.5*(mu_y-y)*(mu_y-y))/std_landmark[1]*std_landmark[1])));
 		}
 		
 		std::vector<int> associations;
@@ -211,12 +213,17 @@ void ParticleFilter::resample() {
 	
 	double beta = 0.0;
 	std::vector<Particle> resampled_particles;
-	
+
+		
 	for(unsigned int i=0; i<num_particles; i++){
 		beta += uni_dist_2wm(gen);
+		std::cout<<"new beta : "<<beta<<std::endl;
 		while(beta>particles[index].weight){
+	//		std::cout<<"Weight : "<<particles[index].weight<<std::endl;
 			beta-=particles[index].weight;
+	//		std::cout<<"reduced beta : "<<beta<<std::endl;
 			index = (index+1)%num_particles;
+	//		std::cout<<"New Index : "<<index<<std::endl;
 		}
 		resampled_particles.push_back(particles[index]);
 	}
